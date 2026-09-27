@@ -13,7 +13,11 @@
   const ui = {
     light: $("st-light"), shots: $("st-shots"), hits: $("st-hits"), bulbs: $("st-bulbs"),
     hint: $("hint"), clock: $("clock"),
-    btnBulb: $("btn-bulb"), bulbWrap: $("bulb-wrap"), btnSweep: $("btn-sweep"), btnSound: $("btn-sound"), btnReset: $("btn-reset"),
+    btnBulb: $("btn-bulb"), bulbWrap: $("bulb-wrap"),
+    btnChallenge: $("btn-challenge"), chHud: $("ch-hud"), chTime: $("ch-time"), chScore: $("ch-score"), chBest: $("ch-best"),
+    countdown: $("countdown"), result: $("result"),
+    rsScore: $("rs-score"), rsRank: $("rs-rank"), rsBadge: $("rs-best-badge"), rsShots: $("rs-shots"), rsAcc: $("rs-acc"), rsBest: $("rs-best"),
+    btnAgain: $("btn-again"), btnDone: $("btn-done"), btnSweep: $("btn-sweep"), btnSound: $("btn-sound"), btnReset: $("btn-reset"),
   };
 
   // big faint lettering painted on the wall behind everything
@@ -235,6 +239,10 @@
     crackle: () => noise(0.05, 0.05, 3000),
     screw: () => { for (let i = 0; i < 3; i++) setTimeout(() => tone("square", 600 + i * 80, 400, 0.03, 0.04), i * 90); },
     sweep: () => noise(0.5, 0.12, 900),
+    beep: () => tone("sine", 880, 870, 0.14, 0.12),
+    go: () => { tone("sine", 1320, 1310, 0.25, 0.14); tone("triangle", 660, 655, 0.25, 0.08); },
+    tick: () => tone("square", 1500, 1400, 0.03, 0.035),
+    fanfare: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone("triangle", f, f, i === 3 ? 0.5 : 0.14, 0.12), i * 120)),
   };
 
   // ---------- actions ----------
@@ -249,6 +257,12 @@
     state.bulbIntact = false;
     state.bulbsLost++;
     sfx.shatter();
+    if (challenge.phase === "running") {
+      challenge.score++;
+      challenge.respawn = 0.55;
+      ui.chScore.textContent = challenge.score;
+      restartAnim(ui.chScore, "bump");
+    }
     const c = toWorld(0, SHADE_H + 4);
     for (let i = 0; i < 30; i++) {
       const ang = rand(0, Math.PI * 2), sp = rand(80, 440);
@@ -300,6 +314,7 @@
     stones.push({ x: pouch.x, y: pouch.y, vx: dx * LAUNCH_POWER, vy: dy * LAUNCH_POWER, spent: false, resting: false, depth: rand(4, 30), shade: rand(0, 1) });
     if (stones.length > MAX_STONES) stones.splice(0, stones.length - MAX_STONES);
     state.shots++;
+    if (challenge.phase === "running") challenge.shots++;
     sfx.twang(pull / MAX_PULL);
     updateUI();
   }
@@ -313,6 +328,119 @@
     updateUI();
   }
 
+  // ---------- 1-minute challenge ----------
+  const CHALLENGE_SECS = 60;
+  const BEST_KEY = "bulbBuster.best";
+  const challenge = { phase: "idle", t: 0, score: 0, shots: 0, respawn: 0, lastSec: null, best: loadBest() };
+
+  function loadBest() {
+    try { return parseInt(localStorage.getItem(BEST_KEY), 10) || 0; } catch (e) { return 0; }
+  }
+  function saveBest(v) {
+    try { localStorage.setItem(BEST_KEY, String(v)); } catch (e) { /* storage unavailable */ }
+  }
+  function restartAnim(el, cls) {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  }
+  function showCount(text) {
+    ui.countdown.hidden = false;
+    ui.countdown.textContent = text;
+    restartAnim(ui.countdown, "pop");
+  }
+  function fmtTime(s) {
+    const n = Math.max(0, Math.ceil(s));
+    return Math.floor(n / 60) + ":" + String(n % 60).padStart(2, "0");
+  }
+  function rankFor(n) {
+    if (n === 0) return "The lamp survives. Suspicious.";
+    if (n <= 3) return "Warming up";
+    if (n <= 7) return "Sharpshooter";
+    if (n <= 12) return "Certified Bulb Buster";
+    return "Legend of the Dark";
+  }
+
+  function startChallenge() {
+    ui.result.hidden = true;
+    reset();
+    Object.assign(challenge, { phase: "countdown", t: 3, score: 0, shots: 0, respawn: 0, lastSec: null });
+    ui.chScore.textContent = "0";
+    ui.chBest.textContent = challenge.best;
+    ui.chTime.textContent = fmtTime(CHALLENGE_SECS);
+    ui.chTime.classList.remove("is-low");
+    audio();
+    updateUI();
+  }
+
+  function quitChallenge() {
+    challenge.phase = "idle";
+    ui.countdown.hidden = true;
+    updateUI();
+  }
+
+  function endChallenge() {
+    challenge.phase = "idle";
+    const { score, shots } = challenge;
+    const isBest = score > challenge.best;
+    if (isBest) { challenge.best = score; saveBest(score); }
+    ui.rsScore.textContent = score;
+    ui.rsRank.textContent = rankFor(score);
+    ui.rsBadge.hidden = !isBest;
+    ui.rsShots.textContent = shots;
+    ui.rsAcc.textContent = (shots ? Math.round((score / shots) * 100) : 0) + "%";
+    ui.rsBest.textContent = challenge.best;
+    ui.result.hidden = false;
+    sfx.fanfare();
+    if (!state.bulbIntact) newBulb();
+    updateUI();
+    ui.btnAgain.focus();
+  }
+
+  function stepChallenge(dt) {
+    if (challenge.phase === "countdown") {
+      const sec = Math.ceil(challenge.t);
+      if (sec !== challenge.lastSec && sec > 0) { challenge.lastSec = sec; showCount(String(sec)); sfx.beep(); }
+      challenge.t -= dt;
+      if (challenge.t <= 0) {
+        challenge.phase = "running";
+        challenge.t = CHALLENGE_SECS;
+        challenge.lastSec = null;
+        showCount("GO!");
+        sfx.go();
+        updateUI();
+      }
+    } else if (challenge.phase === "running") {
+      challenge.t -= dt;
+      const sec = Math.ceil(challenge.t);
+      if (sec !== challenge.lastSec) {
+        challenge.lastSec = sec;
+        ui.chTime.textContent = fmtTime(challenge.t);
+        const low = sec <= 10;
+        ui.chTime.classList.toggle("is-low", low);
+        if (low && sec > 0) sfx.tick();
+      }
+      // new bulb screws in on its own, and each one arrives swinging a bit harder
+      if (!state.bulbIntact && challenge.respawn > 0) {
+        challenge.respawn -= dt;
+        if (challenge.respawn <= 0) {
+          newBulb();
+          const push = Math.min(0.35 + challenge.score * 0.1, 1.5);
+          state.omega += (Math.random() < 0.5 ? -1 : 1) * push;
+        }
+      }
+      if (challenge.t <= 0) endChallenge();
+    }
+  }
+
+  ui.btnChallenge.addEventListener("click", () => {
+    if (challenge.phase === "countdown" || challenge.phase === "running") quitChallenge();
+    else startChallenge();
+  });
+  ui.btnAgain.addEventListener("click", startChallenge);
+  ui.btnDone.addEventListener("click", () => { ui.result.hidden = true; });
+  ui.result.addEventListener("click", (e) => { if (e.target === ui.result) ui.result.hidden = true; });
+
   // ---------- UI ----------
   function updateUI() {
     const lightState = isLit() ? "on" : state.bulbIntact ? "off" : "broken";
@@ -321,11 +449,16 @@
     ui.shots.textContent = state.shots;
     ui.hits.textContent = state.hits;
     ui.bulbs.textContent = state.bulbsLost;
-    ui.bulbWrap.hidden = state.bulbIntact;
+    const inChallenge = challenge.phase === "countdown" || challenge.phase === "running";
+    ui.bulbWrap.hidden = state.bulbIntact || inChallenge;
+    ui.btnChallenge.textContent = inChallenge ? "✕ Quit challenge" : "⏱ 1-min challenge";
+    ui.btnChallenge.classList.toggle("is-live", inChallenge);
+    ui.chHud.hidden = !inChallenge;
     ui.btnSweep.hidden = shards.length === 0;
     ui.btnSound.textContent = "Sound: " + (state.sound ? "on" : "off");
     ui.btnSound.setAttribute("aria-pressed", String(state.sound));
-    if (!state.bulbIntact) ui.hint.textContent = "Bulb is gone! Tap the 💡 New bulb button or press R.";
+    if (inChallenge) ui.hint.textContent = "Challenge on! Break as many bulbs as you can — new ones screw in by themselves.";
+    else if (!state.bulbIntact) ui.hint.textContent = "Bulb is gone! Tap the 💡 New bulb button or press R.";
     else if (!state.switchOn) ui.hint.textContent = "Lights out. Tug the chain (or press L) to switch it back on.";
     else ui.hint.textContent = "Pull the slingshot back & let go · drag the shade to swing it · tug the chain";
   }
@@ -336,7 +469,7 @@
 
   ui.btnBulb.addEventListener("click", newBulb);
   ui.btnSweep.addEventListener("click", sweep);
-  ui.btnReset.addEventListener("click", reset);
+  ui.btnReset.addEventListener("click", () => { quitChallenge(); reset(); });
   ui.btnSound.addEventListener("click", () => { state.sound = !state.sound; updateUI(); });
 
   window.addEventListener("keydown", (e) => {
@@ -345,6 +478,8 @@
     else if (k === "r") newBulb();
     else if (k === "s") sweep();
     else if (k === "m") { state.sound = !state.sound; updateUI(); }
+    else if (k === "c") { if (challenge.phase === "idle") startChallenge(); }
+    else if (k === "escape") { if (!ui.result.hidden) ui.result.hidden = true; else if (challenge.phase !== "idle") quitChallenge(); }
   });
 
   // ---------- input ----------
@@ -575,6 +710,7 @@
     for (let i = 0; i < sub; i++) { stepLamp(subH); stepStones(subH); }
     stepParticles(dt);
     stepPouch(dt);
+    stepChallenge(dt);
   }
 
   // ---------- static room (painted once per resize) ----------
@@ -608,11 +744,11 @@
     // faint oversized wall lettering
     const wallH = floor - 20;
     let fs = Math.min(W * 0.16, wallH * 0.32);
-    g.font = `800 ${fs}px "Bricolage Grotesque", system-ui, sans-serif`;
+    g.font = `800 ${fs}px "Bricolage Grotesque", -apple-system, "Helvetica Neue", Arial, sans-serif`;
     const widest = Math.max(...WALL_TEXT.map((t) => g.measureText(t).width));
     if (widest > W * 0.92) {
       fs *= (W * 0.92) / widest;
-      g.font = `800 ${fs}px "Bricolage Grotesque", system-ui, sans-serif`;
+      g.font = `800 ${fs}px "Bricolage Grotesque", -apple-system, "Helvetica Neue", Arial, sans-serif`;
     }
     if ("letterSpacing" in g) g.letterSpacing = `${Math.round(fs * -0.03)}px`;
     g.textAlign = "center";

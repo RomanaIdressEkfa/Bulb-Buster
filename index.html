@@ -9,7 +9,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💡</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -36,9 +36,47 @@
     </div>
   </section>
 
+  <div class="challenge-hud" id="ch-hud" hidden aria-live="polite">
+    <div class="ch-block">
+      <span class="eyebrow">Time</span>
+      <div class="ch-time" id="ch-time">1:00</div>
+    </div>
+    <div class="ch-divider"></div>
+    <div class="ch-block">
+      <span class="eyebrow">Bulbs broken</span>
+      <div class="ch-score" id="ch-score">0</div>
+    </div>
+    <div class="ch-divider"></div>
+    <div class="ch-block">
+      <span class="eyebrow">Best</span>
+      <div class="ch-best" id="ch-best">0</div>
+    </div>
+  </div>
+
+  <div class="countdown" id="countdown" hidden aria-live="assertive"></div>
+
+  <div class="result-backdrop" id="result" hidden>
+    <div class="result" role="dialog" aria-labelledby="result-title">
+      <span class="eyebrow">Time&#39;s up</span>
+      <h2 id="result-title"><span id="rs-score">0</span> <small>bulbs</small></h2>
+      <p class="rank" id="rs-rank">Warming up</p>
+      <div class="badge" id="rs-best-badge" hidden>🏆 New best score!</div>
+      <div class="result-stats">
+        <div><span>Shots</span><b id="rs-shots">0</b></div>
+        <div><span>Accuracy</span><b id="rs-acc">0%</b></div>
+        <div><span>Best</span><b id="rs-best">0</b></div>
+      </div>
+      <div class="result-actions">
+        <button id="btn-again" class="btn btn-primary">⏱ Play again</button>
+        <button id="btn-done" class="btn">Done</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="hud hud-bottom">
     <p class="hint" id="hint">Pull the slingshot back &amp; let go · drag the shade to swing it · tug the chain</p>
     <div class="actions">
+      <button id="btn-challenge" class="btn btn-challenge">⏱ 1-min challenge</button>
       <div class="bulb-wrap" id="bulb-wrap" hidden>
         <div class="bulb-arrow" aria-hidden="true">
           <span>tap for a new bulb</span>
