@@ -13,8 +13,7 @@
   const ui = {
     light: $("st-light"), shots: $("st-shots"), hits: $("st-hits"), bulbs: $("st-bulbs"),
     hint: $("hint"), clock: $("clock"),
-    btnBulb: $("btn-bulb"), btnSweep: $("btn-sweep"), btnSound: $("btn-sound"), btnReset: $("btn-reset"),
-    card: $("broken-card"), btnBulbCard: $("btn-bulb-card"),
+    btnBulb: $("btn-bulb"), bulbWrap: $("bulb-wrap"), btnSweep: $("btn-sweep"), btnSound: $("btn-sound"), btnReset: $("btn-reset"),
   };
 
   // big faint lettering painted on the wall behind everything
@@ -277,8 +276,11 @@
     if (state.bulbIntact) return;
     state.bulbIntact = true;
     state.bulbScale = 0;
+    // a fresh bulb always comes in switched on, so the room lights up right away
+    state.switchOn = true;
+    state.lightLevel = 0;
     sfx.screw();
-    if (state.switchOn) state.lightLevel = 0;
+    setTimeout(sfx.click, 280);
     updateUI();
   }
 
@@ -319,12 +321,11 @@
     ui.shots.textContent = state.shots;
     ui.hits.textContent = state.hits;
     ui.bulbs.textContent = state.bulbsLost;
-    ui.btnBulb.hidden = state.bulbIntact;
-    ui.card.hidden = state.bulbIntact;
+    ui.bulbWrap.hidden = state.bulbIntact;
     ui.btnSweep.hidden = shards.length === 0;
     ui.btnSound.textContent = "Sound: " + (state.sound ? "on" : "off");
     ui.btnSound.setAttribute("aria-pressed", String(state.sound));
-    if (!state.bulbIntact) ui.hint.textContent = "Well, that happened. Screw in a new bulb (R) or enjoy the dark.";
+    if (!state.bulbIntact) ui.hint.textContent = "Bulb is gone! Tap the 💡 New bulb button or press R.";
     else if (!state.switchOn) ui.hint.textContent = "Lights out. Tug the chain (or press L) to switch it back on.";
     else ui.hint.textContent = "Pull the slingshot back & let go · drag the shade to swing it · tug the chain";
   }
@@ -334,17 +335,6 @@
   }
 
   ui.btnBulb.addEventListener("click", newBulb);
-  ui.btnBulbCard.addEventListener("click", newBulb);
-
-  // keep the "new bulb" card hanging just under the swinging lamp
-  function placeCard() {
-    if (ui.card.hidden) return;
-    const c = toWorld(0, SHADE_H + 40);
-    const x = clamp(c.x, 166, W - 166);
-    const y = clamp(c.y, 120, H - ui.card.offsetHeight - 90);
-    ui.card.style.left = x + "px";
-    ui.card.style.top = y + "px";
-  }
   ui.btnSweep.addEventListener("click", sweep);
   ui.btnReset.addEventListener("click", reset);
   ui.btnSound.addEventListener("click", () => { state.sound = !state.sound; updateUI(); });
@@ -375,6 +365,9 @@
     if (Math.hypot(p.x - pouch.x, p.y - pouch.y) < 46) return "pull";
     if (nearChain(p.x, p.y, 12)) return "chain";
     const l = toLocal(p.x, p.y);
+    if (!state.bulbIntact) {
+      if (inBulb(l, 16)) return "socket";
+    }
     if (inShade(l, 10) || inBulb(l, 8)) return "lamp";
     return null;
   }
@@ -388,6 +381,11 @@
     pointer.id = e.pointerId;
     pointer.x = p.x; pointer.y = p.y;
     canvas.setPointerCapture(e.pointerId);
+    if (t === "socket") {
+      newBulb();
+      pointer.id = null;
+      return;
+    }
     if (t === "chain") {
       toggleSwitch();
       sfx.chime();
@@ -408,7 +406,7 @@
     pointer.x = p.x; pointer.y = p.y;
     if (pointer.id === null) {
       const t = hitTarget(p);
-      canvas.style.cursor = t === "chain" ? "pointer" : t ? "grab" : "crosshair";
+      canvas.style.cursor = t === "chain" || t === "socket" ? "pointer" : t ? "grab" : "crosshair";
     }
   });
 
@@ -1337,7 +1335,6 @@
     drawSparks();
     drawSlingshot();
     drawPost();
-    placeCard();
   }
 
   // ---------- loop ----------
