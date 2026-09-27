@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Bulb Buster</title>
+  <meta name="description" content="A tiny late-night physics toy: one hanging lamp, one slingshot, questionable decisions." />
+  <meta name="theme-color" content="#0a0c14" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💡</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="stage" aria-label="Hanging lamp and slingshot playground"></canvas>
+
+  <header class="hud hud-top">
+    <div class="brand">
+      <span class="eyebrow">Late Night Edition</span>
+      <h1>Bulb <em>Buster</em></h1>
+      <p>It's late. The lamp is fragile. You found a slingshot.</p>
+    </div>
+    <div class="clock-wrap">
+      <span class="eyebrow">Local time</span>
+      <div class="clock" id="clock">--:--</div>
+    </div>
+  </header>
+
+  <section class="hud hud-stats" aria-live="polite">
+    <div class="panel">
+      <div class="stat"><span>Light</span><b id="st-light" class="state">on</b></div>
+      <div class="stat"><span>Shots</span><b id="st-shots">0</b></div>
+      <div class="stat"><span>Hits</span><b id="st-hits">0</b></div>
+      <div class="stat"><span>Bulbs lost</span><b id="st-bulbs">0</b></div>
+    </div>
+  </section>
+
+  <div class="broken-card" id="broken-card" hidden role="alert">
+    <span class="eyebrow">Oops — the bulb is gone</span>
+    <p>The room stays dark until you put a new one in.</p>
+    <button id="btn-bulb-card" class="btn btn-primary btn-lg">💡 Get a new bulb</button>
+    <small>or press <kbd>R</kbd> anytime</small>
+  </div>
+
+  <footer class="hud hud-bottom">
+    <p class="hint" id="hint">Pull the slingshot back &amp; let go · drag the shade to swing it · tug the chain</p>
+    <div class="actions">
+      <button id="btn-bulb" class="btn btn-primary" hidden>💡 New bulb</button>
+      <button id="btn-sweep" class="btn" hidden>Sweep the floor</button>
+      <button id="btn-sound" class="btn" aria-pressed="true">Sound: on</button>
+      <button id="btn-reset" class="btn">Reset</button>
+    </div>
+  </footer>
+
+  <script src="game.js"></script>
+</body>
+</html>
